@@ -1,0 +1,1 @@
+{"version":3,"file":"transporter.model.js","sourceRoot":"","sources":["../../src/models/transporter.model.ts"],"names":[],"mappings":";;;;;;AAAA,4DAAqD;AACrD,kDAAoE;AAEvD,QAAA,WAAW,GAAgB,oBAAU,CAAC,eAAe,CAAC;IAC/D,OAAO,EAAE,yBAAa;IACtB,IAAI,EAAE;QACJ,IAAI,EAAE,iBAAK;QACX,IAAI,EAAE,oBAAQ;KACf;CACF,CAAC,CAAC"}

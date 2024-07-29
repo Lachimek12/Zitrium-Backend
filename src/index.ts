@@ -2,17 +2,19 @@
 //ALWAYS RUN BUILD TO MAKE CHANGES ON SERVER
 //!!!!!!!!!!!!!!!!!
 
-
-import express, { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import fs from 'fs';
+import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv'
 import { connectToMongoDB } from './config/database/mongo';
 import { PORT, MONGO_URI } from './utils/constants';
 
 const homePageRoutes = require('./routes/homePage.routes');
+const accountRoutes = require('./routes/user.routes');
+const errorHandler = require('./middlewares/errorHandler');
 
-fs;
+
+// Env file config
+dotenv.config();
 
 // Create an instance of express
 const app = express();
@@ -24,8 +26,11 @@ connectToMongoDB(MONGO_URI);
 app.use(express.json());
 // Allow communication between local ports
 app.use(cors());
-// Use routes
+// Routes
 app.use(homePageRoutes);
+app.use(accountRoutes);
+// Use middleware for error handling
+app.use(errorHandler);
 
 // Start the server
 app.listen(PORT, () => {

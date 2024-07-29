@@ -7,12 +7,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const fs_1 = __importDefault(require("fs"));
 const cors_1 = __importDefault(require("cors"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const mongo_1 = require("./config/database/mongo");
 const constants_1 = require("./utils/constants");
 const homePageRoutes = require('./routes/homePage.routes');
-fs_1.default;
+const accountRoutes = require('./routes/user.routes');
+const errorHandler = require('./middlewares/errorHandler');
+// Env file config
+dotenv_1.default.config();
 // Create an instance of express
 const app = (0, express_1.default)();
 // Start MongoDB
@@ -21,8 +24,11 @@ const app = (0, express_1.default)();
 app.use(express_1.default.json());
 // Allow communication between local ports
 app.use((0, cors_1.default)());
-// Use routes
+// Routes
 app.use(homePageRoutes);
+app.use(accountRoutes);
+// Use middleware for error handling
+app.use(errorHandler);
 // Start the server
 app.listen(constants_1.PORT, () => {
     console.log(`Server is running on port ${constants_1.PORT}`);
