@@ -4,7 +4,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv'
 import { connectToMongoDB } from './config/database/mongo';
 import { PORT, MONGO_URI } from './utils/constants';
 
@@ -12,9 +11,6 @@ const homePageRoutes = require('./routes/homePage.routes');
 const accountRoutes = require('./routes/user.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
-
-// Env file config
-dotenv.config();
 
 // Create an instance of express
 const app = express();

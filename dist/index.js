@@ -8,14 +8,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const mongo_1 = require("./config/database/mongo");
 const constants_1 = require("./utils/constants");
 const homePageRoutes = require('./routes/homePage.routes');
 const accountRoutes = require('./routes/user.routes');
 const errorHandler = require('./middlewares/errorHandler');
-// Env file config
-dotenv_1.default.config();
 // Create an instance of express
 const app = (0, express_1.default)();
 // Start MongoDB

@@ -14,17 +14,18 @@ const enums_1 = require("../types/enums");
 const UserModel = require('../models/user.model');
 function createVerificationMail(email) {
     const token = jsonwebtoken_1.default.sign({ email }, constants_2.JWT_KEY, { expiresIn: constants_1.JWT_EXPIRE });
-    const mailConfigurations = {
-        from: constants_1.EMAIL,
-        to: email,
-        subject: 'Email Verification',
+    const messageData = {
+        from: `Zitrium <mailgun@${constants_1.EMAIL}>`,
+        to: [`${email}`],
+        subject: "Email Verification",
         text: `Hi! There, You have recently visited 
                our website and entered your email.
                Please follow the given link to verify your email
-               http://localhost:${constants_1.CLIENT_PORT}/verify-email?token=${token} 
-               Thanks`
+               http://localhost:${constants_1.CLIENT_PORT}/VerifyEmail?token=${token} 
+               Thanks`,
+        //html: "<h1>hi</h1>",
     };
-    return mailConfigurations;
+    return messageData;
 }
 const registerUser = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
     const newUser = req.body;
@@ -33,15 +34,15 @@ const registerUser = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => 
     if (checkForUser) {
         return next(new Error(enums_1.ErrorType.EmailTaken));
     }
-    const mailConfigurations = createVerificationMail(email);
-    transporter_model_1.transporter.sendMail(mailConfigurations, async (error, info) => {
-        if (error) {
-            console.log(error);
-            return next(new Error(enums_1.ErrorType.ErrorSendingEmail));
-        }
+    transporter_model_1.transporter.messages.create(constants_1.EMAIL, createVerificationMail(email))
+        .then(async (msg) => {
         await (0, user_1.saveUser)(newUser.username, newUser.email, newUser.password);
-        res.status(203).send({ message: 'Verification email sent' });
-        console.log(info);
+        res.status(200).send({ message: 'Verification email sent' });
+        console.log(msg);
+    })
+        .catch((err) => {
+        console.error(err);
+        return next(new Error(enums_1.ErrorType.ErrorSendingEmail));
     });
 });
 exports.registerUser = registerUser;
@@ -54,27 +55,31 @@ const resendVerificationEmail = (0, asyncHandler_1.asyncHandler)(async (req, res
     if (checkForUser.verified) {
         return next(new Error(enums_1.ErrorType.EmailVerified));
     }
-    const mailConfigurations = createVerificationMail(email);
-    transporter_model_1.transporter.sendMail(mailConfigurations, async (error, info) => {
-        if (error) {
-            console.log(error);
-            return next(new Error(enums_1.ErrorType.ErrorSendingEmail));
-        }
-        res.status(203).send({ message: 'Verification email sent' });
-        console.log(info);
+    transporter_model_1.transporter.messages.create(constants_1.EMAIL, createVerificationMail(email))
+        .then((msg) => {
+        res.status(200).send({ message: 'Verification email sent' });
+        console.log(msg);
+    })
+        .catch((err) => {
+        console.error(err);
+        return next(new Error(enums_1.ErrorType.ErrorSendingEmail));
     });
 });
 exports.resendVerificationEmail = resendVerificationEmail;
 const verifyEmail = (0, asyncHandler_1.asyncHandler)(async (req, res, next) => {
-    const token = req.params.token;
+    const token = req.query.token;
     jsonwebtoken_1.default.verify(token, constants_2.JWT_KEY, async (err, decoded) => {
         if (err) {
             console.log(err);
             return next(new Error(enums_1.ErrorType.VerificationFailed));
         }
         else {
-            await UserModel.updateOne({ email: decoded }, { $set: { verified: true } });
-            res.status(203).send("Email verifified successfully");
+            const decodedEmail = decoded.email;
+            if (!decodedEmail) {
+                return next(new Error(enums_1.ErrorType.VerificationFailed));
+            }
+            await UserModel.updateOne({ email: decodedEmail }, { $set: { verified: true } });
+            res.status(200).send("Email verifified successfully");
         }
     });
 });

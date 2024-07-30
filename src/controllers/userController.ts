@@ -6,51 +6,50 @@ import { transporter } from '../models/transporter.model';
 import { saveUser } from "../utils/user";
 import { JWT_KEY } from "../utils/constants"
 import { IUser } from "../models/user.model";
-import { Options } from "nodemailer/lib/mailer";
 import { ErrorType } from "../types/enums";
+import { MailgunMessageData, MessagesSendResult } from "mailgun.js";
 
 const UserModel = require('../models/user.model');
 
 
-function createVerificationMail(email: string): Options {
+function createVerificationMail(email: string): MailgunMessageData {
     const token: string = jwt.sign({ email }, JWT_KEY, { expiresIn: JWT_EXPIRE });
 
-    const mailConfigurations: Options = {
-        from: EMAIL,
-        to: email,
-        subject: 'Email Verification',
+    const messageData: MailgunMessageData = {
+        from: `Zitrium <mailgun@${EMAIL}>`,
+        to: [`${email}`],
+        subject: "Email Verification",
 
         text: `Hi! There, You have recently visited 
                our website and entered your email.
                Please follow the given link to verify your email
-               http://localhost:${CLIENT_PORT}/verify-email?token=${token} 
-               Thanks`
+               http://localhost:${CLIENT_PORT}/VerifyEmail?token=${token} 
+               Thanks`,
+        //html: "<h1>hi</h1>",
     };
 
-    return mailConfigurations;
+    return messageData;
 }
 
 const registerUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const newUser = req.body;
-    const email: string = newUser.email
+    const email: string = newUser.email;
 
     const checkForUser: IUser = await UserModel.findOne({ email });
     if (checkForUser) {
         return next(new Error(ErrorType.EmailTaken));
     }
 
-    const mailConfigurations: Options = createVerificationMail(email);
-
-    transporter.sendMail(mailConfigurations, async (error, info) => {
-        if (error) {
-            console.log(error);
-            return next(new Error(ErrorType.ErrorSendingEmail));
-        }
-
+    transporter.messages.create(EMAIL, createVerificationMail(email))
+    .then(async (msg: MessagesSendResult) => {
         await saveUser(newUser.username, newUser.email, newUser.password);
-        res.status(203).send({ message: 'Verification email sent'});
-        console.log(info);
-      });
+        res.status(200).send({ message: 'Verification email sent'});
+        console.log(msg);
+    })
+    .catch((err: Error) => {
+        console.error(err);
+        return next(new Error(ErrorType.ErrorSendingEmail));
+    });
 });
 
 const resendVerificationEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
@@ -64,21 +63,19 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
         return next(new Error(ErrorType.EmailVerified));
     }
 
-    const mailConfigurations: Options = createVerificationMail(email);
-
-    transporter.sendMail(mailConfigurations, async (error, info) => {
-        if (error) {
-            console.log(error);
-            return next(new Error(ErrorType.ErrorSendingEmail));
-        }
-
-        res.status(203).send({ message: 'Verification email sent'});
-        console.log(info);
-      });
+    transporter.messages.create(EMAIL, createVerificationMail(email))
+    .then((msg: MessagesSendResult) => {
+        res.status(200).send({ message: 'Verification email sent'});
+        console.log(msg);
+    })
+    .catch((err: Error) => {
+        console.error(err);
+        return next(new Error(ErrorType.ErrorSendingEmail));
+    })
 });
 
 const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const token: string = req.params.token;
+    const token: string = req.query.token as string;
 
     jwt.verify(token, JWT_KEY, async (err, decoded) => {
         if (err) {
@@ -86,8 +83,13 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextF
             return next(new Error(ErrorType.VerificationFailed));
         }
         else {
-            await UserModel.updateOne({ email: decoded }, { $set: { verified: true } });
-            res.status(203).send("Email verifified successfully");
+            const decodedEmail: string = (decoded as any).email;
+            if (!decodedEmail) {
+                return next(new Error(ErrorType.VerificationFailed));
+            }
+
+            await UserModel.updateOne({ email: decodedEmail }, { $set: { verified: true } });
+            res.status(200).send("Email verifified successfully");
         }
     });
 });
