@@ -13,10 +13,8 @@ export const CLIENT_PORT = process.env.CLIENT_PORT || 3001;
 // MongoDB connection string
 export const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/demoDB';
 
-// Nodemailer
+// Mailgun
 export const EMAIL = process.env.EMAIL || 'email';
 export const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || 'key';
-
-// JWT
-export const JWT_KEY = process.env.JWT_KEY || 'ukulele2';
-export const JWT_EXPIRE = process.env.JWT_EXPIRE || '1h';
+export const VERIFICATION_EXPIRE = '3m';
+export const VERIFICATION_LENGTH = 6;

@@ -1,20 +1,30 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from '../middlewares/asyncHandler';
-import jwt from 'jsonwebtoken';
-import { CLIENT_PORT, EMAIL, JWT_EXPIRE } from "../utils/constants";
+import { CLIENT_PORT, EMAIL, VERIFICATION_LENGTH } from "../utils/constants";
 import { transporter } from '../models/transporter.model';
 import { saveUser } from "../utils/user";
-import { JWT_KEY } from "../utils/constants"
 import { IUser } from "../models/user.model";
 import { ErrorType } from "../types/enums";
 import { MailgunMessageData, MessagesSendResult } from "mailgun.js";
+import { getEmailHTML } from "../views/email.html";
 
 const UserModel = require('../models/user.model');
 
 
-function createVerificationMail(email: string): MailgunMessageData {
-    const token: string = jwt.sign({ email }, JWT_KEY, { expiresIn: JWT_EXPIRE });
+function generateVerificationCode(): string {
+    let code = "";
+    const givenSet1 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+    const givenSet2 = "1234567890"
 
+    for (let i = 0; i < VERIFICATION_LENGTH; i++) {
+        let pos = Math.floor(Math.random() * givenSet2.length);
+        code += givenSet2[pos];
+    };
+
+    return code;
+}
+
+function createVerificationMail(email: string, token: string): MailgunMessageData {
     const messageData: MailgunMessageData = {
         from: `Zitrium <mailgun@${EMAIL}>`,
         to: [`${email}`],
@@ -22,10 +32,10 @@ function createVerificationMail(email: string): MailgunMessageData {
 
         text: `Hi! There, You have recently visited 
                our website and entered your email.
-               Please follow the given link to verify your email
-               http://localhost:${CLIENT_PORT}/VerifyEmail?token=${token} 
+               Here is your verification code: ${token}
                Thanks`,
-        //html: "<h1>hi</h1>",
+        //html: "<h1>hi</h1>", http://localhost:${CLIENT_PORT}/VerifyEmail?token=${token} 
+        html: getEmailHTML(token),
     };
 
     return messageData;
@@ -40,9 +50,10 @@ const registerUser = asyncHandler(async (req: Request, res: Response, next: Next
         return next(new Error(ErrorType.EmailTaken));
     }
 
-    transporter.messages.create(EMAIL, createVerificationMail(email))
+    const token: string = generateVerificationCode();
+    transporter.messages.create(EMAIL, createVerificationMail(email, token))
     .then(async (msg: MessagesSendResult) => {
-        await saveUser(newUser.username, newUser.email, newUser.password);
+        await saveUser(newUser.username, newUser.email, newUser.password, token);
         res.status(200).send({ message: 'Verification email sent'});
         console.log(msg);
     })
@@ -63,8 +74,10 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
         return next(new Error(ErrorType.EmailVerified));
     }
 
-    transporter.messages.create(EMAIL, createVerificationMail(email))
-    .then((msg: MessagesSendResult) => {
+    const token: string = generateVerificationCode();
+    transporter.messages.create(EMAIL, createVerificationMail(email, token))
+    .then(async (msg: MessagesSendResult) => {
+        await UserModel.updateOne({ email: email }, { $set: { createdAt: Date.now() } });
         res.status(200).send({ message: 'Verification email sent'});
         console.log(msg);
     })
@@ -76,22 +89,27 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
 
 const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const token: string = req.query.token as string;
+    const email: string = req.query.email as string;
 
-    jwt.verify(token, JWT_KEY, async (err, decoded) => {
-        if (err) {
-            console.log(err);
-            return next(new Error(ErrorType.VerificationFailed));
-        }
-        else {
-            const decodedEmail: string = (decoded as any).email;
-            if (!decodedEmail) {
-                return next(new Error(ErrorType.VerificationFailed));
-            }
+    const checkForUser: IUser = await UserModel.findOne({ email });
+    if (!checkForUser) {
+        return next(new Error(ErrorType.UserDoesNotExist));
+    }
+    if (checkForUser.verified) {
+        return next(new Error(ErrorType.EmailVerified));
+    }
+    if (checkForUser.verificationCode != token) {
+        return next(new Error(ErrorType.VerificationFailed));
+    }
 
-            await UserModel.updateOne({ email: decodedEmail }, { $set: { verified: true } });
-            res.status(200).send("Email verifified successfully");
+    await UserModel.updateOne(
+        { email: email }, 
+        { 
+            $set: { verified: true },
+            $unset: { createdAt: '', verificationCode: '' },
         }
-    });
+    );
+    res.status(200).send("Email verifified successfully");
 });
 
 export {

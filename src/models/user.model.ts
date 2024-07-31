@@ -1,4 +1,5 @@
 import mongoose, { Model, Schema, Document } from "mongoose";
+import { VERIFICATION_EXPIRE } from "../utils/constants";
 
 
 export interface IUser extends Document {
@@ -6,6 +7,8 @@ export interface IUser extends Document {
     email: String;
     password: String;
     verified: boolean;
+    verificationCode: String;
+    createdAt: Date;
 }
 
 const UserSchema: Schema<IUser> = new mongoose.Schema({
@@ -13,6 +16,8 @@ const UserSchema: Schema<IUser> = new mongoose.Schema({
     email: { type: String, required: true, unique: true},
     password: { type: String, required: true},
     verified: { type: Boolean, required: true},
+    verificationCode: { type: String },
+    createdAt: { type: Date, index: { expires: VERIFICATION_EXPIRE } },
 });
 
 const User: Model<IUser> = mongoose.model("User", UserSchema);
