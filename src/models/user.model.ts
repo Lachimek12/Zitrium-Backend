@@ -1,5 +1,5 @@
 import mongoose, { Model, Schema, Document } from "mongoose";
-import { VERIFICATION_EXPIRE } from "../utils/constants";
+import { VERIFICATION_EXPIRE } from "@utils/constants";
 
 
 export interface IUser extends Document {

@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { asyncHandler } from '../middlewares/asyncHandler';
-import { saveUser } from '../utils/user';
-import { IUser } from "../models/user.model";
-import { ErrorType } from "../types/enums";
+import { asyncHandler } from '@middlewares/asyncHandler';
+import { saveUser } from '@utils/user';
+import { IUser } from "@models/user.model";
+import { ErrorType } from "@/types/enums";
 
 const UserModel = require('../models/user.model');
 

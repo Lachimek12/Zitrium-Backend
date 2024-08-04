@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { ErrorType } from "../types/enums";
+import { ErrorType } from "@/types/enums";
 
 
 module.exports = (err: Error, req: Request, res: Response, next: NextFunction) => {
@@ -25,6 +25,14 @@ module.exports = (err: Error, req: Request, res: Response, next: NextFunction) =
     else if (err.message == ErrorType.ErrorSendingEmail) {
         status = 500;
         message = 'Could not send verification email';
+    }
+    else if (err.message == ErrorType.IncorrectEmail) {
+        status = 400;
+        message = 'Given email is incorrect';
+    }
+    else if (err.message == ErrorType.ResendEmailCooldown) {
+        status = 400;
+        message = 'Wait before resending verification email.'
     }
 
     console.error(err);

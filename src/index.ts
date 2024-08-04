@@ -4,12 +4,12 @@
 
 import express from 'express';
 import cors from 'cors';
-import { connectToMongoDB } from './config/database/mongo';
-import { PORT, MONGO_URI } from './utils/constants';
+import { connectToMongoDB } from '@config/database/mongo';
+import { PORT, MONGO_URI } from '@utils/constants';
 
-const homePageRoutes = require('./routes/homePage.routes');
-const accountRoutes = require('./routes/user.routes');
-const errorHandler = require('./middlewares/errorHandler');
+const homePageRoutes = require('@routes/homePage.routes');
+const accountRoutes = require('@routes/user.routes');
+const errorHandler = require('@middlewares/errorHandler');
 
 
 // Create an instance of express

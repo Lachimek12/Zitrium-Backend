@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { sendFirstUser, receiveUserData } from '../controllers/homeController';
+import { sendFirstUser, receiveUserData } from '@controllers/homeController';
 
 const router = require("express").Router();
 

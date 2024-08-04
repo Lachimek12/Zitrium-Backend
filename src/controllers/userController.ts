@@ -1,14 +1,16 @@
 import { Request, Response, NextFunction } from "express";
-import { asyncHandler } from '../middlewares/asyncHandler';
-import { CLIENT_PORT, EMAIL, VERIFICATION_LENGTH } from "../utils/constants";
-import { transporter } from '../models/transporter.model';
-import { saveUser } from "../utils/user";
-import { IUser } from "../models/user.model";
-import { ErrorType } from "../types/enums";
+import { asyncHandler } from '@middlewares/asyncHandler';
+import { BCRYPT_SALT_ROUNDS, EMAIL, VERIFICATION_LENGTH, VERIFICATION_RESEND_COOLDOWN_SEC } from "@utils/constants";
+import { transporter } from '@models/transporter.model';
+import { saveUser } from "@utils/user";
+import { IUser } from "@models/user.model";
+import { ErrorType } from "@/types/enums";
 import { MailgunMessageData, MessagesSendResult } from "mailgun.js";
-import { getEmailHTML } from "../views/email.html";
+import { getEmailHTML } from "@views/email.html";
+import validator from 'validator';
 
-const UserModel = require('../models/user.model');
+const UserModel = require('@models/user.model');
+const bcrypt = require('bcrypt');
 
 
 function generateVerificationCode(): string {
@@ -16,9 +18,10 @@ function generateVerificationCode(): string {
     const givenSet1 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
     const givenSet2 = "1234567890"
 
+    const givenSet: string = givenSet2; // Only here change currently used set, to prevent mistakes
     for (let i = 0; i < VERIFICATION_LENGTH; i++) {
-        let pos = Math.floor(Math.random() * givenSet2.length);
-        code += givenSet2[pos];
+        let pos = Math.floor(Math.random() * givenSet.length);
+        code += givenSet[pos];
     };
 
     return code;
@@ -30,11 +33,11 @@ function createVerificationMail(email: string, token: string): MailgunMessageDat
         to: [`${email}`],
         subject: "Email Verification",
 
-        text: `Hi! There, You have recently visited 
-               our website and entered your email.
-               Here is your verification code: ${token}
-               Thanks`,
-        //html: "<h1>hi</h1>", http://localhost:${CLIENT_PORT}/VerifyEmail?token=${token} 
+        text: `
+                Hi! There, You have recently visited
+                our website and entered your email.
+                Here is your verification code: ${token}
+                Thanks`, 
         html: getEmailHTML(token),
     };
 
@@ -44,6 +47,10 @@ function createVerificationMail(email: string, token: string): MailgunMessageDat
 const registerUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const newUser = req.body;
     const email: string = newUser.email;
+
+    if (!validator.isEmail(email)) {
+        return next(new Error(ErrorType.IncorrectEmail));
+    }
 
     const checkForUser: IUser = await UserModel.findOne({ email });
     if (checkForUser) {
@@ -73,11 +80,20 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
     if (checkForUser.verified) {
         return next(new Error(ErrorType.EmailVerified));
     }
+    if ((Date.now() - checkForUser.createdAt.getTime()) / 1000 < VERIFICATION_RESEND_COOLDOWN_SEC) {
+        return next(new Error(ErrorType.ResendEmailCooldown));
+    }
 
     const token: string = generateVerificationCode();
     transporter.messages.create(EMAIL, createVerificationMail(email, token))
     .then(async (msg: MessagesSendResult) => {
-        await UserModel.updateOne({ email: email }, { $set: { createdAt: Date.now() } });
+        const hashedToken = await bcrypt.hash(token, BCRYPT_SALT_ROUNDS);
+        await UserModel.updateOne(
+            { email: email }, 
+            { 
+                $set: { createdAt: Date.now(), verificationCode: hashedToken },
+            }
+        );
         res.status(200).send({ message: 'Verification email sent'});
         console.log(msg);
     })
@@ -88,8 +104,8 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
 });
 
 const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const token: string = req.query.token as string;
-    const email: string = req.query.email as string;
+    const token: string = req.body.token;
+    const email: string = req.body.email;
 
     const checkForUser: IUser = await UserModel.findOne({ email });
     if (!checkForUser) {
@@ -98,7 +114,8 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextF
     if (checkForUser.verified) {
         return next(new Error(ErrorType.EmailVerified));
     }
-    if (checkForUser.verificationCode != token) {
+    const tokensMatch: boolean = await bcrypt.compare(token, checkForUser.verificationCode);
+    if (!tokensMatch) {
         return next(new Error(ErrorType.VerificationFailed));
     }
 

@@ -4,4 +4,6 @@ export enum ErrorType {
     EmailVerified = 'EmailVerified',
     VerificationFailed = 'VerificationFailed',
     ErrorSendingEmail = 'ErrorSendingEmail',
+    IncorrectEmail = 'IncorrectEmail',
+    ResendEmailCooldown = 'ResendEmailCooldown',
 }

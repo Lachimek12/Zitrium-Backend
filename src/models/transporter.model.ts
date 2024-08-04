@@ -1,6 +1,6 @@
 import FormData from 'form-data';
 import Mailgun from 'mailgun.js';
-import { MAILGUN_API_KEY } from '../utils/constants';
+import { MAILGUN_API_KEY } from '@utils/constants';
 import { IMailgunClient } from 'mailgun.js/Interfaces';
 
 
