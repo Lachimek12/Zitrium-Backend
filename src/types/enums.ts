@@ -6,4 +6,6 @@ export enum ErrorType {
     ErrorSendingEmail = 'ErrorSendingEmail',
     IncorrectEmail = 'IncorrectEmail',
     ResendEmailCooldown = 'ResendEmailCooldown',
+    IncorrectPassword = 'IncorrectPassword',
+    TokenExpired = 'TokenExpired',
 }

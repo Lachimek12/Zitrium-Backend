@@ -34,6 +34,14 @@ module.exports = (err: Error, req: Request, res: Response, next: NextFunction) =
         status = 400;
         message = 'Wait before resending verification email.'
     }
+    else if (err.message == ErrorType.IncorrectPassword) {
+        status = 400;
+        message = 'Incorrect password';
+    }
+    else if (err.message == ErrorType.TokenExpired) {
+        status = 401;
+        message = 'Token expired, please login.';
+    }
 
     console.error(err);
     res.status(status).send(message);

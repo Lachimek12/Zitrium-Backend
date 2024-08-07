@@ -16,9 +16,14 @@ export const MONGO_URI: string = process.env.MONGO_URI || 'mongodb://localhost:2
 // Mailgun
 export const EMAIL: string = process.env.EMAIL || 'email';
 export const MAILGUN_API_KEY: string = process.env.MAILGUN_API_KEY || 'key';
-export const VERIFICATION_EXPIRE: string = '3m';
+export const VERIFICATION_EXPIRE: string = '5m';
 export const VERIFICATION_LENGTH: number = 6;
 export const VERIFICATION_RESEND_COOLDOWN_SEC: number = 30;
 
 // Password hashing
 export const BCRYPT_SALT_ROUNDS: number = Number(process.env.BCRYPT_SALT_ROUNDS) || 1;
+
+// JWT
+export const JWT_SECRET_KEY: string = process.env.JWT_SECRET_KEY || 'ukulele2';
+export const JWT_TOKEN_EXPIRE_TIME: string = '8h';
+export const REDIS_KEY_EXPIRE_SEC: number = 60*60*24*14; // 2 weeks

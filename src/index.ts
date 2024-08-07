@@ -4,8 +4,9 @@
 
 import express from 'express';
 import cors from 'cors';
-import { connectToMongoDB } from '@config/database/mongo';
+import { connectToMongoDB } from '@config/mongo';
 import { PORT, MONGO_URI } from '@utils/constants';
+import passport from 'passport';
 
 const homePageRoutes = require('@routes/homePage.routes');
 const accountRoutes = require('@routes/user.routes');
@@ -22,6 +23,11 @@ connectToMongoDB(MONGO_URI);
 app.use(express.json());
 // Allow communication between local ports
 app.use(cors());
+// Middleware for authentication
+app.use(passport.initialize());
+require('@config/passport');
+require('@config/redis');
+
 // Routes
 app.use(homePageRoutes);
 app.use(accountRoutes);

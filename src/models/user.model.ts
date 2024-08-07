@@ -3,11 +3,11 @@ import { VERIFICATION_EXPIRE } from "@utils/constants";
 
 
 export interface IUser extends Document {
-    username: String;
-    email: String;
-    password: String;
+    username: string;
+    email: string;
+    password: string;
     verified: boolean;
-    verificationCode: String;
+    verificationCode: string;
     createdAt: Date;
 }
 
