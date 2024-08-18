@@ -17,7 +17,7 @@ You will also need to create a [Mailgun](https://www.mailgun.com/) account in or
 
 - run `npm install` in both frontend and backend directory to install all required packages
 - create `.env` environment file in both frontend and backend directory and fill in your data. You can find a template in `.env.example` file
-- run `npm run build` to create js files out of ts files, which is required as Node doesn't fully support ts yet (may change in the future)
+- run `npm run build` in backend directory to create js files out of ts files, which is required as Node doesn't fully support ts yet (may change in the future)
 
 ### Docker
 
