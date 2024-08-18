@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from '@middlewares/asyncHandler';
-import { BCRYPT_SALT_ROUNDS, EMAIL, JWT_SECRET_KEY, JWT_TOKEN_EXPIRE_TIME, REDIS_KEY_EXPIRE_SEC, VERIFICATION_LENGTH, VERIFICATION_RESEND_COOLDOWN_SEC } from "@utils/constants";
+import { BCRYPT_SALT_ROUNDS, EMAIL, JWT_SECRET_KEY, JWT_TOKEN_EXPIRE_TIME, USED_JWT_TOKEN_EXPIRE_SEC, VERIFICATION_EXPIRE_SEC, VERIFICATION_LENGTH, VERIFICATION_RESEND_COOLDOWN_SEC } from "@utils/constants";
 import { transporter } from '@models/transporter.model';
 import { saveUser } from "@utils/user";
 import { IUser } from "@models/user.model";
@@ -18,10 +18,8 @@ const redisClient = require('@config/redis');
 
 function generateVerificationCode(): string {
     let code = "";
-    const givenSet1 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-    const givenSet2 = "1234567890"
+    const givenSet = "1234567890";
 
-    const givenSet: string = givenSet2; // Only here change currently used set, to prevent mistakes
     for (let i = 0; i < VERIFICATION_LENGTH; i++) {
         let pos = Math.floor(Math.random() * givenSet.length);
         code += givenSet[pos];
@@ -30,7 +28,7 @@ function generateVerificationCode(): string {
     return code;
 }
 
-function createVerificationMail(email: string, token: string): MailgunMessageData {
+function createVerificationMail(email: string, code: string): MailgunMessageData {
     const messageData: MailgunMessageData = {
         from: `Zitrium <mailgun@${EMAIL}>`,
         to: [`${email}`],
@@ -39,9 +37,9 @@ function createVerificationMail(email: string, token: string): MailgunMessageDat
         text: `
                 Hi! There, You have recently visited
                 our website and entered your email.
-                Here is your verification code: ${token}
+                Here is your verification code: ${code}
                 Thanks`, 
-        html: getEmailHTML(token),
+        html: getEmailHTML(code),
     };
 
     return messageData;
@@ -56,14 +54,30 @@ const registerUser = asyncHandler(async (req: Request, res: Response, next: Next
     }
 
     const checkForUser: IUser = await UserModel.findOne({ email });
-    if (checkForUser) {
+    if (checkForUser && checkForUser.verified) {
         return next(new Error(ErrorType.EmailTaken));
     }
 
-    const token: string = generateVerificationCode();
-    transporter.messages.create(EMAIL, createVerificationMail(email, token))
+    const code: string = generateVerificationCode();
+    transporter.messages.create(EMAIL, createVerificationMail(email, code))
     .then(async (msg: MessagesSendResult) => {
-        await saveUser(newUser.username, newUser.email, newUser.password, token);
+        if (checkForUser) {
+            const hashedPass: string = await bcrypt.hash(newUser.password, BCRYPT_SALT_ROUNDS);
+            await UserModel.updateOne(
+                { email: email }, 
+                { 
+                    $set: { createdAt: Date.now(), password: hashedPass, username: newUser.username },
+                }
+            );
+        }
+        else {
+            await saveUser(newUser.username, newUser.email, newUser.password);
+        }
+
+        const hashedCode: string = await bcrypt.hash(code, BCRYPT_SALT_ROUNDS);
+        await redisClient.set(newUser.email, hashedCode);
+        await redisClient.expire(newUser.email, VERIFICATION_EXPIRE_SEC);
+
         res.status(200).send({ message: 'Verification email sent'});
         console.log(msg);
     })
@@ -87,16 +101,19 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
         return next(new Error(ErrorType.ResendEmailCooldown));
     }
 
-    const token: string = generateVerificationCode();
-    transporter.messages.create(EMAIL, createVerificationMail(email, token))
+    const code: string = generateVerificationCode();
+    transporter.messages.create(EMAIL, createVerificationMail(email, code))
     .then(async (msg: MessagesSendResult) => {
-        const hashedToken = await bcrypt.hash(token, BCRYPT_SALT_ROUNDS);
+        const hashedCode: string = await bcrypt.hash(code, BCRYPT_SALT_ROUNDS);
         await UserModel.updateOne(
             { email: email }, 
             { 
-                $set: { createdAt: Date.now(), verificationCode: hashedToken },
+                $set: { createdAt: Date.now() },
             }
         );
+        await redisClient.set(email, hashedCode);
+        await redisClient.expire(email, VERIFICATION_EXPIRE_SEC);
+
         res.status(200).send({ message: 'Verification email sent'});
         console.log(msg);
     })
@@ -107,7 +124,7 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
 });
 
 const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const token: string = req.body.token;
+    const code: string = req.body.token as string;
     const email: string = req.body.email;
 
     const checkForUser: IUser = await UserModel.findOne({ email });
@@ -117,7 +134,9 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextF
     if (checkForUser.verified) {
         return next(new Error(ErrorType.EmailVerified));
     }
-    const tokensMatch: boolean = await bcrypt.compare(token, checkForUser.verificationCode);
+
+    const hashedCode: string = (await redisClient.get(email)) ?? "null";
+    const tokensMatch: boolean = await bcrypt.compare(code, hashedCode);
     if (!tokensMatch) {
         return next(new Error(ErrorType.VerificationFailed));
     }
@@ -126,9 +145,10 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextF
         { email: email }, 
         { 
             $set: { verified: true },
-            $unset: { createdAt: '', verificationCode: '' },
+            $unset: { createdAt: '' },
         }
     );
+    
     res.status(200).send("Email verifified successfully");
 });
 
@@ -141,7 +161,9 @@ const loginUser = asyncHandler(async (req: Request, res: Response, next: NextFun
         return next(new Error(ErrorType.UserDoesNotExist));
     }
 
-    // IDK if we check here if user is verified
+    if (!checkForUser.verified) {
+        return next(new Error(ErrorType.EmailNotVerified));
+    }
 
     const passwordMatch: boolean = await bcrypt.compare(password, checkForUser.password);
     if (!passwordMatch) {
@@ -166,7 +188,8 @@ const loginUser = asyncHandler(async (req: Request, res: Response, next: NextFun
 
 const logoutUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const token: string = getTokenFromHeader(req);
-    redisClient.set(token, REDIS_KEY_EXPIRE_SEC, JSON.stringify({ revoked: 'true' }));
+    await redisClient.set(token, 'true');
+    await redisClient.expire(token, USED_JWT_TOKEN_EXPIRE_SEC);
     
     res.status(200).json("Logged out successfully");
 });

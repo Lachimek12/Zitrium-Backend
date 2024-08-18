@@ -8,4 +8,5 @@ export enum ErrorType {
     ResendEmailCooldown = 'ResendEmailCooldown',
     IncorrectPassword = 'IncorrectPassword',
     TokenExpired = 'TokenExpired',
+    EmailNotVerified = 'EmailNotVerified',
 }

@@ -8,7 +8,7 @@ module.exports = (err: Error, req: Request, res: Response, next: NextFunction) =
 
     if (err.message == ErrorType.EmailTaken) {
         status = 400;
-        message = 'Email already in use. If you did not verify your email, please verify or resend verification email below.';
+        message = 'Email already in use.';
     }
     else if (err.message == ErrorType.UserDoesNotExist) {
         status = 400;
@@ -20,7 +20,7 @@ module.exports = (err: Error, req: Request, res: Response, next: NextFunction) =
     }
     else if (err.message == ErrorType.VerificationFailed) {
         status = 400;
-        message = 'Email verification failed, possibly the link is invalid or expired';
+        message = 'Email verification failed, possibly the code is invalid or expired';
     }
     else if (err.message == ErrorType.ErrorSendingEmail) {
         status = 500;
@@ -41,6 +41,10 @@ module.exports = (err: Error, req: Request, res: Response, next: NextFunction) =
     else if (err.message == ErrorType.TokenExpired) {
         status = 401;
         message = 'Token expired, please login.';
+    }
+    else if (err.message == ErrorType.EmailNotVerified) {
+        status = 400;
+        message = 'Email is not verified. Please verify your email first.'
     }
 
     console.error(err);

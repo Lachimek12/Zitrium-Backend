@@ -25,7 +25,7 @@ const receiveUserData = asyncHandler(async (req: Request, res: Response, next: N
     console.log(userData.name);
     console.log(userData.email);
 
-    await saveUser(userData.name, userData.email, 'xd', 'roar2');
+    await saveUser(userData.name, userData.email, 'xd');
 
     // Respond with a success message
     res.status(201).send('User data saved successfully');

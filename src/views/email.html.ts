@@ -1,4 +1,4 @@
-export function getEmailHTML(token: string): string {
+export function getEmailHTML(code: string): string {
     const html = `
     <!DOCTYPE html>
     <html>
@@ -56,7 +56,7 @@ export function getEmailHTML(token: string): string {
                 <p>Hi there!</p>
                 <p>You have recently visited our website and entered your email address.</p>
                 <p>Here is your verification code:</p>
-                <div class="verification-code">${token}</div>
+                <div class="verification-code">${code}</div>
                 <p>Thanks for your attention!</p>
             </div>
             <div class="footer">

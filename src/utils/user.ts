@@ -5,16 +5,14 @@ import bcrypt from 'bcrypt';
 const UserModel = require('@models/user.model');
 
 
-async function saveUser(username: string, email: string, password: string, verificationCode: string) {
+async function saveUser(username: string, email: string, password: string) {
     const hashedPass: string = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
-    const hashedToken: string = await bcrypt.hash(verificationCode, BCRYPT_SALT_ROUNDS);
 
     const myData: IUser = new UserModel({
         username: username,
         email: email,
         password: hashedPass,
         verified: false,
-        verificationCode: hashedToken,
         createdAt: Date.now(),
     });
     await myData.save();
