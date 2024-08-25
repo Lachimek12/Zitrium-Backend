@@ -124,7 +124,7 @@ const resendVerificationEmail = asyncHandler(async (req: Request, res: Response,
 });
 
 const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const code: string = req.body.token as string;
+    const code: string = req.body.code as string;
     const email: string = req.body.email;
 
     const checkForUser: IUser = await UserModel.findOne({ email });
@@ -136,8 +136,8 @@ const verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextF
     }
 
     const hashedCode: string = (await redisClient.get(email)) ?? "null";
-    const tokensMatch: boolean = await bcrypt.compare(code, hashedCode);
-    if (!tokensMatch) {
+    const codesMatch: boolean = await bcrypt.compare(code, hashedCode);
+    if (!codesMatch) {
         return next(new Error(ErrorType.VerificationFailed));
     }
 
